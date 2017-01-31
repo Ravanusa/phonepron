@@ -9,37 +9,31 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
 
-/**
- *
- * @author baal
- */
 public class Pronouncer {
 
-    private final HashMap<String, ArrayList<String>> woc_;
-    private final HashMap<String, String> numkey_;
-    private final int PHONE_LENGTH = 11;
+    private final HashMap<String, ArrayList<String>> voc_;
+    private HashMap<String, String> numkey_;
+    private String[] words_;
     private final int wordCount_;
-    private final String[] words_;
 
-    public Pronouncer() throws IOException {
-        // read words
-        words_ = readWordsFromProps();
+    public Pronouncer(Lang language) throws IOException {
+        // read words_ & numkey_
+        readVocabulary(language);
         wordCount_ = words_.length;
-        numkey_ = getNumKeyMap();
 
-        // init hash
-        woc_ = new HashMap<String, ArrayList<String>>();
+        // init words hash
+        voc_ = new HashMap<String, ArrayList<String>>();
         for (int i = 0; i < wordCount_; i++) {
             String wocWord = words_[i];
             String numWord = wordToNum(wocWord);
 
-            ArrayList<String> words = woc_.get(numWord);
+            ArrayList<String> words = voc_.get(numWord);
             if (words == null || words.size() < 1) {
                 words = new ArrayList<String>();
             }
             words.add(wocWord);
 
-            woc_.put(numWord, words);
+            voc_.put(numWord, words);
         }
 
     }
@@ -47,7 +41,7 @@ public class Pronouncer {
     public List<String> getPhoneNames(String phone) {
         HashSet<String> pronList = new HashSet<String>();
         
-        for(int namePartCount=PHONE_LENGTH; namePartCount>1; namePartCount--) {
+        for(int namePartCount=phone.length(); namePartCount>1; namePartCount--) {
             pronList.addAll(getPhoneNamesForPartCount(phone, namePartCount));
         }
         
@@ -58,20 +52,22 @@ public class Pronouncer {
     }
 
     private HashSet<String> getPhoneNamesForPartCount(String phone, int partCount) {
+        int phoneLength = phone.length();
+                
         HashSet<String> pronList = new HashSet<String>();
         
         int[] ccount = new int[partCount];
-        for (int i=0; i < partCount; i++) {
+        for (int i = 0; i < partCount; i++) {
             ccount[i] = 1;
         }
-        ccount[0] = PHONE_LENGTH - partCount + 1;
+        ccount[0] = phoneLength - partCount + 1;
         
         while(true) {
             HashSet<String> prons = getPhoneNamesForParts(phone, ccount);
             if(prons != null && prons.size() > 0) {
                 pronList.addAll(prons);
             }
-            if(!RorateParts(ccount)) {
+            if(!RorateParts(ccount, phoneLength)) {
                 break;
             }
         }
@@ -82,8 +78,8 @@ public class Pronouncer {
     private HashSet<String> getPhoneNamesForParts(String phone, int[] ccount) {
         List<String> phoneParts = splitPhoneToParts(phone, ccount);
         
-        List<List<String>> pronParts = new ArrayList<List<String>>(); // по кол-ву частей
-        for(int i=0; i<phoneParts.size(); i++) {
+        List<List<String>> pronParts = new ArrayList<List<String>>();
+        for(int i = 0; i < phoneParts.size(); i++) {
             List<String> partVariations = getpartVariationsForNums(phoneParts.get(i));
             pronParts.add(partVariations);
         }
@@ -114,10 +110,10 @@ public class Pronouncer {
         List<String> vars = new ArrayList<String>();
         
         if(nums.length() >= 1) {
-            vars.add(nums); // добавляет сами цифры в ответ
+            vars.add(nums); // add numbers inself in answer
         }
         
-        ArrayList<String> words = woc_.get(nums);
+        ArrayList<String> words = voc_.get(nums);
         if(words != null && words.size() > 0) {
             vars.addAll(words);
         }
@@ -137,7 +133,7 @@ public class Pronouncer {
         return phoneParts;
     }
     
-    private boolean RorateParts(int[] ccount) {
+    private boolean RorateParts(int[] ccount, int phoneLength) {
         if(ccount.length < 2) {
             return false;
         }
@@ -160,57 +156,31 @@ public class Pronouncer {
             for(int j=i-1; j>0; j--) {
                 ccount[j] = 1;
             }
-            ccount[0] = PHONE_LENGTH - arraySumWoLast(ccount); // остаток
+            ccount[0] = phoneLength - arraySumWithoutLast(ccount); // last part
             return true;
         }
         
         return !isOverflow;
     }
     
-    private int arraySumWoLast(int[] ccount) {
+    private int arraySumWithoutLast(int[] ccount) {
         int sum = 0;
-        for(int i=1; i<ccount.length; i++) {
+        for(int i = 1; i < ccount.length; i++) {
             sum += ccount[i];
         }
         return sum;
     }
     
-    private HashMap<String, String> getNumKeyMap() {
+    private HashMap<String, String> getNumKeyMap(String[] nummapping) {
         HashMap<String, String> m = new HashMap<String, String>();
-        m.put("0", "0");
-        m.put("1", "1");
-        m.put("а", "2");
-        m.put("б", "2");
-        m.put("в", "2");
-        m.put("г", "2");
-        m.put("д", "3");
-        m.put("е", "3");
-        m.put("ж", "3");
-        m.put("з", "3");
-        m.put("и", "4");
-        m.put("й", "4");
-        m.put("к", "4");
-        m.put("л", "4");
-        m.put("м", "5");
-        m.put("н", "5");
-        m.put("о", "5");
-        m.put("п", "5");
-        m.put("р", "6");
-        m.put("с", "6");
-        m.put("т", "6");
-        m.put("у", "6");
-        m.put("ф", "7");
-        m.put("х", "7");
-        m.put("ц", "7");
-        m.put("ч", "7");
-        m.put("ш", "8");
-        m.put("щ", "8");
-        m.put("ъ", "8");
-        m.put("ы", "8");
-        m.put("ь", "9");
-        m.put("э", "9");
-        m.put("ю", "9");
-        m.put("я", "9");
+        int mapCount = nummapping.length;
+        if(mapCount % 2 > 0) {
+            throw new RuntimeException("nummapping must have even count of elements");
+        }
+        
+        for(int i = 0; i < mapCount; i += 2) {
+            m.put(nummapping[i], nummapping[i+1]);
+        }
         return m;
     }
 
@@ -226,16 +196,20 @@ public class Pronouncer {
         return ss.toString();
     }
 
-    private String[] readWordsFromProps() throws IOException {
+    private void readVocabulary(Lang language) throws IOException {
+        String propFileName = "vocabulary_" + language.name() + ".properties";
         Properties properties = new Properties();
-        InputStream inputStream = getClass().getResourceAsStream("wocabulary.properties");
+        InputStream inputStream = getClass().getResourceAsStream(propFileName);
         if(inputStream == null) {
-            throw new RuntimeException(".props not found");
+            throw new RuntimeException(propFileName + " not found");
         }
         
         properties.load(inputStream);
         String ww = properties.getProperty("wocwords");
-        String[] words = ww.split(",");
-        return words;
+        words_ = ww.split(",");
+        
+        String nummap = properties.getProperty("nummapping");
+        String[] nummaparray = nummap.split(",");
+        numkey_ = getNumKeyMap(nummaparray);
     }
 }
